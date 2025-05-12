@@ -1,0 +1,2 @@
+FROM vllm/vllm-openai:${VLLM_IMAGE_VERSION}
+RUN pip install librosa soundfile

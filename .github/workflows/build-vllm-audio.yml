@@ -1,0 +1,54 @@
+name: Build VLLM Audio Docker Image
+
+on:
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Fetch latest VLLM OpenAI tag from Docker Hub
+        id: fetch_tag # Give this step an ID to reference its outputs
+        run: |
+          # Fetch the latest tag using Docker Hub API
+          VLLM_TAG=$(curl -s "https://hub.docker.com/v2/repositories/vllm/vllm-openai/tags/?page_size=1" | jq -r '.results[0].name')
+          
+          if [ -z "$VLLM_TAG" ]; then
+            echo "Error: Could not fetch latest VLLM tag."
+            exit 1
+          fi
+          
+          echo "Fetched VLLM tag: $VLLM_TAG"
+          # Set the fetched tag as a step output
+          echo "VLLM_TAG=$VLLM_TAG" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Create Dockerfile from template
+        run: |
+          # Replace the placeholder in the template with the fetched tag
+          sed "s|\${VLLM_IMAGE_VERSION}|${{ steps.fetch_tag.outputs.VLLM_TAG }}|g" Dockerfile.template > Dockerfile
+          cat Dockerfile # Optional: Print the generated Dockerfile
+        shell: bash
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: alulaa/vllm-openai-audio:${{ steps.fetch_tag.outputs.VLLM_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
