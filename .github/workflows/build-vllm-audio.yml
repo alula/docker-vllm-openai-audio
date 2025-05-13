@@ -50,5 +50,3 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: alulaa/vllm-openai-audio:${{ steps.fetch_tag.outputs.VLLM_TAG }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
